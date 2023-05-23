@@ -85,7 +85,7 @@ def check_trend_change(df):
 def main():
     print("Started... ")
     # Create the DataFrame
-    df = pd.DataFrame(columns=['stock', 'mcap', 'sector' , 'industry'])
+    df = pd.DataFrame(columns=['stock', 'mcap', 'vol1', 'vol2d', 'vol3d', 'sector' , 'industry'])
 
     # Iterate through the list of stocks
     for stock in stocks["Ticker"]:
@@ -95,6 +95,8 @@ def main():
             data = stk_ticker.history(period=time_frame,interval=data_interval,auto_adjust=False)
             # Drop those with NaN
             data = data.dropna()
+            if (len(data) < 2): # cannot do much analysis with 2 month candle
+                continue
             # Drop last row, if 2nd last is already of the month
             if data.index[-1].month == data.index[-2].month:
                 # Replace the values in the second-to-last row with the values in the last row
@@ -109,6 +111,7 @@ def main():
             # Merge it to data
             heikin_ashi_data = heikin_ashi_data.join(data)
 
+            # Check if there is a trend change
             if check_trend_change(heikin_ashi_data):
                 sector = ''
                 industry = ''
@@ -120,7 +123,15 @@ def main():
                         marketCap = round(stk_ticker.info['marketCap'] / One_Cr, 0)
                 except Exception as err:
                     pass
-                row = {'stock': stock, 'mcap' : marketCap,'sector' : sector, 'industry' : industry}
+
+                # Get volume data
+                vols = data.tail(3)['Volume']
+                vol1 = vols[0]
+                vol2d = vols[1] - vol1
+                vol3d = vols[2] - vols[1]
+
+                # Append to row
+                row = {'stock': stock, 'mcap' : marketCap, 'vol1' : vol1, 'vol2d' : vol2d,'vol3d' : vol3d, 'sector' : sector, 'industry' : industry}
                 # Append the new row to the DataFrame
                 df.loc[len(df)] = row
             
