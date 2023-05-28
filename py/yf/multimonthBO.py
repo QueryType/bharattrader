@@ -17,16 +17,19 @@ time_frame = 'max'
 data_interval = '1mo'
 
 # Set the minimum number of months since the last ath was breached
-min_months = 11
+MIN_MONTHS = 11
 
 # Threshold to previous ATH
-threshold = 0.95
+threshold = 1.0
 
 # Initialize a list to store the results
 results = []
 
-# determine if lowest close was minimum_low_length ago.
-def highestClose(stock_data):
+# Crore
+One_Cr = 10000000
+
+# determine if highest close was minimum_low_length ago.
+def highestClose(stock_data, min_months):
 
     highest_close = stock_data["Close"][0]
     highest_close_date = stock_data.index[0]
@@ -48,13 +51,13 @@ def write_dataframe_to_file(df, name):
     # Create the filename
     filename = f'{name}_{timestamp}.csv'
     # Save the DataFrame as a CSV file with specific column names as the header
-    df.to_csv(output_path + "/" + filename, index=False, columns=["Stock", "Highest Close", "Highest Close Date", "Current Close", "Diff"])
+    df.to_csv(output_path + "/" + filename, index=False, columns=["Stock", "mcap", "Highest Close", "Highest Close Date", "Current Close", "Diff", "sector", "industry"])
 
 
 def main():
     print("Started...")
     # create an empty dataframe to store the results
-    results_df = pd.DataFrame(columns=["Stock", "Highest Close", "Highest Close Date", "Current Close", "Diff"])
+    results_df = pd.DataFrame(columns=["Stock", "mcap", "Highest Close", "Highest Close Date", "Current Close", "Diff", "sector" , "industry"])
     # Iterate through the list of stocks
     for stock in stocks["Ticker"]:
         try:
@@ -71,22 +74,42 @@ def main():
                 data = data.drop(data.index[-1])
 
             # print(data)
+            if (len(data) <= 2):
+                print(f'Skipping {stock} since not enough data present ')
+                continue
 
+            min_months = MIN_MONTHS
+            if (len(data) < (MIN_MONTHS + 1)):
+                print(f'{stock} has only {len(data)} months, trimming condition')
+                min_months = len(data)
+                
             # Highest close prior to last month
-            result_highestClose = highestClose(data.iloc[:-1]) # Skip the current month
+            result_highestClose = highestClose(data.iloc[:-1], min_months) # Skip the current month
             highestClose_condition = result_highestClose[0]
             highestClose_value = result_highestClose[1]
             highestClose_date = result_highestClose[2]
 
+            # Essential data
+            sector = ''
+            industry = ''
+            marketCap = ''
+            try:
+                if ticker.info:
+                    marketCap = round(ticker.info['marketCap'] / One_Cr, 0)
+                    industry = ticker.info['industry']
+                    sector = ticker.info['sector']
+            except Exception as err:
+                pass
+
             last_close = data["Close"].tail(1).values[0]
             if (highestClose_condition and last_close >= highestClose_value * threshold):
                 diff = round(((last_close - highestClose_value) / highestClose_value) * 100, 2)
-                new_row = pd.DataFrame({"Stock": stock, "Highest Close": highestClose_value, "Highest Close Date": highestClose_date, "Current Close": last_close, "Diff": diff}, index=[0])
+                new_row = pd.DataFrame({"Stock": stock, "mcap": marketCap, "Highest Close": round(highestClose_value, 2), "Highest Close Date": highestClose_date, \
+                                        "Current Close": round(last_close, 2), "Diff": diff, "sector": sector, "industry": industry}, index=[0])
                 results_df = pd.concat([results_df, new_row])
 
         except Exception as e:
-            print("Error for ticker: " + stock)
-            print(e)
+            print(f'Error for ticker: {stock} ==> {e}')
 
     # print(results_df)
     write_dataframe_to_file(results_df, "MultiMonth_BO_")
