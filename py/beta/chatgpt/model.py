@@ -1,5 +1,6 @@
 import openai
-
+import os
+from dotenv import load_dotenv, find_dotenv
 
 def get_completion(prompt, model="gpt-3.5-turbo"):
     messages = [{"role": "user", "content": prompt}]
@@ -48,9 +49,6 @@ def get_completion_from_messages(messages,
     )
     return response.choices[0].message["content"]
 
-f = open(f'api.txt')
-api_key = f.read()
-f.close()
-
 def set_api():
-    openai.api_key  = api_key
+    _ = load_dotenv(find_dotenv()) # read local .env file
+    openai.api_key = os.environ['OPENAI_API_KEY']
