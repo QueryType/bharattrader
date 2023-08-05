@@ -18,7 +18,7 @@ stock_industry_map = pd.read_csv("stock_sector_industry_map.csv", header=0, usec
 reference_date = '2022-12-01'
 
 # Run date, must be greater than reference date
-run_date = '2023-07-29'
+run_date = '2023-08-05'
 
 # Minimum number of trading days to consider for index
 min_trading_days = 200
@@ -28,6 +28,9 @@ max_stocks_per_sector = 10
 
 # Limit on marketcap
 min_cap = 500 # Crores
+
+# Calculate gain percentages for different time periods
+periods = [5, 21, 55, 123]
 
 # Specify the benchmark symbol
 benchmark = "^NSEI"
@@ -111,16 +114,26 @@ def generate_watchlist_with_headers(custom_indices):
     
     return sector_index_mapper
 
-def calculate_gain_from_referencedate(data_df, reference_date, run_date):
+def calculate_gain_percentages(data_df, reference_date, run_date):
     # Filter the data from the reference date to the run date
     filtered_data = data_df.loc[reference_date:run_date]
 
-    # Calculate the gain percentage
+    # Calculate the gain percentage for the original period
     start_price = filtered_data.iloc[0]['Close']
     end_price = filtered_data.iloc[-1]['Close']
     gain_percentage = ((end_price - start_price) / start_price) * 100
 
-    return round(gain_percentage, 2)
+    gain_percentages = [gain_percentage]
+
+    for period in periods:
+        if len(filtered_data) < period:
+            gain_percentages.append(None)  # Append None if there's insufficient data for the period
+        else:
+            start_price_period = filtered_data.iloc[-period]['Close']
+            gain_percentage_period = ((end_price - start_price_period) / start_price_period) * 100
+            gain_percentages.append(round(gain_percentage_period, 2))
+
+    return gain_percentages
 
 def calculate_sector_gains(custom_indices, reference_date, run_date):
     sector_gains = {}
@@ -162,7 +175,7 @@ def main():
     # Calculate gains of benchmark from reference date to run date
     benchmark_ticker = yf.Ticker(benchmark)
     benchmark_data = benchmark_ticker.history(start=reference_date, end=run_date, interval='1d',auto_adjust=False, prepost=False)
-    benchmark_gain = calculate_gain_from_referencedate(benchmark_data, reference_date, run_date)
+    benchmark_gain = calculate_gain_percentages(benchmark_data, reference_date, run_date)[0]
 
     print("Calculating sector gains...")
     sector_gains = calculate_sector_gains(custom_indices, reference_date, run_date)
@@ -176,7 +189,8 @@ def main():
 
     # Now we run for all stocks and create a big list and report
     result_df = pd.DataFrame(columns=['symbol', 'start','end','days', 'mcap', 'sector', 'industry', 'gain_stock_sector',  'gain_stock_benchmrk', 'gain_sector_benchmrk', \
-                                      'gain_stock_refdate', 'gain_sector_refdate', 'gain_benchmrk_refdate', 'sector_index'])
+                                      'gain_stock_refdate', 'gain_sector_refdate', 'gain_benchmrk_refdate', 'gain_stock_5d', 'gain_stock_21d', 'gain_stock_55d', 'gain_stock_123d',\
+                                        'sector_index'])
     
     print("Calculating stock performances...")
     # Iterate through each row in the DataFrame
@@ -188,20 +202,22 @@ def main():
             if (len(stock_data) <= 2):
                 print(f'Skipping... {nse_code}')
                 continue
-            stock_gain = calculate_gain_from_referencedate(stock_data,reference_date, run_date)
+            stock_gains = calculate_gain_percentages(stock_data,reference_date, run_date)
+            stock_gain_from_refdate = stock_gains[0]
             sector = row['Sector']
             industry = row['Industry']
             mcap = row['Market Cap']
-            gain_stock_sector = stock_gain - sector_gains[sector]
-            gain_stock_benchmrk = stock_gain - benchmark_gain
+            gain_stock_sector = stock_gain_from_refdate - sector_gains[sector]
+            gain_stock_benchmrk = stock_gain_from_refdate - benchmark_gain
             gain_sector_benchmrk = sector_gains[sector] - benchmark_gain
             gain_sector_refdate = sector_gains[sector]
             sector_index = sector_index_mapper[sector.upper()]
             
             row = {'symbol': nse_code, 'start': reference_date, 'end' : run_date, 'days' : days_difference, 'mcap': str(mcap), 'sector' : sector.upper(), 'industry' : industry.upper(), \
                 'gain_stock_sector' : str(gain_stock_sector), 'gain_stock_benchmrk' : str(gain_stock_benchmrk), 'gain_sector_benchmrk' : str(gain_sector_benchmrk), \
-                    'gain_stock_refdate' : str(stock_gain),  'gain_sector_refdate' : str(gain_sector_refdate), 'gain_benchmrk_refdate' : str(benchmark_gain), \
-                        'sector_index' : sector_index}
+                    'gain_stock_refdate' : str(stock_gain_from_refdate),  'gain_sector_refdate' : str(gain_sector_refdate), 'gain_benchmrk_refdate' : str(benchmark_gain), \
+                        'gain_stock_5d' : str(stock_gains[1]), 'gain_stock_55d' : str(stock_gains[2]), 'gain_stock_21d' : str(stock_gains[3]), 'gain_stock_123d' : str(stock_gains[4]),\
+                            'sector_index' : sector_index}
             
             # Append the new row to the DataFrame
             result_df.loc[len(result_df)] = row        
