@@ -20,13 +20,14 @@ import datetime
 
 # Read the list of stocks from the CSV file
 stocks = pd.read_csv("stocks.csv", header=0, usecols=["Ticker"])
+# Exchange ".BO" for BSE, ".NS" for Nifty
+exchg = ".NS"
 
 # Set start Date
-start_date = '2022-05-09' # Should be a date that is start of the week date, so that daily and weekly data can match
+start_date = '2022-07-25' # Should be a date that is start of the week date, so that daily and weekly data can match
 
 # Set end Date
-end_date = '2023-05-20'
-
+end_date = '2023-07-29'
 # Folder location
 output = 'output'
 
@@ -36,24 +37,60 @@ data_interval_daily = '1d'
 
 # Weekly volume average length
 weekly_volume_length = 10
+# Daily volume average length
+daily_volume_length = 100
 
 # Number of days to check for limevolume
 lookback_length = 55 #3-months daily
 
+# Read up sector/industry information from text data
+stock_industry_map = pd.read_csv("stock_sector_industry_map.csv", header=0, usecols=["NSE Code","Industry","Market Cap", "Sector"])
+
 # Crore
 One_Cr = 10000000
+
+def fetch_industry_mcap(nse_code):
+
+    industry = ''
+    mcap = ''
+    sector = ''
+
+    try:
+        # We try to get from local file first
+        sector = stock_industry_map[stock_industry_map['NSE Code'] == nse_code]['Sector'].iloc[0]
+        industry = stock_industry_map[stock_industry_map['NSE Code'] == nse_code]['Industry'].iloc[0]
+        mcap =  stock_industry_map[stock_industry_map['NSE Code'] == nse_code]['Market Cap'].iloc[0]
+    except Exception as err:
+        pass
+
+    if industry == '' or mcap == '':
+        try:
+                # Try yf
+                ticker = yf.Ticker(nse_code+".NS")
+                if ticker.info:
+                    if industry == '':
+                        industry = ticker.info['industry']
+                    if mcap == '':
+                        mcap = round(ticker.info['marketCap'] / One_Cr, 0)
+                    if sector == '':
+                        sector = ticker.info['sector']
+        except Exception as err:
+            pass
+
+    return [sector, industry, mcap]
 
 def main():
     print("Started... " + start_date + " - " + end_date)
 
     # Create the DataFrame
-    df = pd.DataFrame(columns=['stock', 'mcap', 'limeVolToday', 'limeVolCount', 'latestLimeVolDate', 'priceChng', 'earliestLimeVolDate', 'sector' , 'industry'])
+    df = pd.DataFrame(columns=['stock', 'mcap', 'blueVolCount', 'limeVolToday', 'limeVolCount', 'latestLimeVolDate',  'earliestLimeVolDate', 'tealVolCount', 'latestTealVolDate', \
+                               'earliestTealVolDate', 'priceChng', 'sector' , 'industry'])
     # Iterate through the list of stocks
     for stock in stocks["Ticker"]:
         try:
             print(f'Analyzing {stock}...')
-            # Get the stock datas
-            stk_ticker = yf.Ticker(stock+".NS")
+            # Get the stock data
+            stk_ticker = yf.Ticker(stock+exchg)
             # Get the stock data from yfinance, dont adjust OHLC
             stock_data_daily = stk_ticker.history(start=start_date, end=end_date,interval=data_interval_daily,auto_adjust=False, prepost=False)
             # Drop those with NaN
@@ -66,6 +103,10 @@ def main():
             #10wk avg volume
             weekly_vol_avg_col = f'Weekly_Volume_Avg{weekly_volume_length}'
             stock_data_weekly[weekly_vol_avg_col] = stock_data_weekly['Volume'].rolling(window=weekly_volume_length, min_periods=1).mean().fillna(0)
+
+            #100d avg volule
+            daily_vol_avg_col = f'Daily_Volume_Avg{daily_volume_length}'
+            stock_data_daily[daily_vol_avg_col] = stock_data_daily['Volume'].rolling(window=daily_volume_length, min_periods=1).mean().fillna(0)
 
             # Create a new column in the daily data to store the corresponding weekly volume
             stock_data_daily[weekly_vol_avg_col] = 0
@@ -94,9 +135,12 @@ def main():
           
             isTodayLimeVolume = False
             cntLimeCount = 0
+            cntTealCount = 0
             pctChange = 0
             earliestLimeVolDate = ''
             latestLimeVolDate = ''
+            earliestTealVolDate = ''
+            latestTealVolDate = ''
             # reverse
             stock_data_daily = stock_data_daily.iloc[::-1]
 
@@ -117,20 +161,21 @@ def main():
                                 pctChange = round(((stock_data_daily['Close'][i] / stock_data_daily['Close'][i+1]) - 1 ) * 100, 2)
                             if i == 0:
                                 isTodayLimeVolume = True
-            sector = ''
-            industry = ''
-            marketCap = ''
-            try:
-                if stk_ticker.info:
-                    sector = stk_ticker.info['sector']
-                    industry = stk_ticker.info['industry']
-                    marketCap = round(stk_ticker.info['marketCap'] / One_Cr, 0)
-            except Exception as err:
-                pass
+                        # Teal Volume
+                        if stock_data_daily['Volume'][i] > stock_data_daily[daily_vol_avg_col][i]: # Now compare if this day's volume is greater than daily average volume
+                            cntTealCount = cntTealCount + 1
+                            earliestTealVolDate = stock_data_daily.index[i].strftime("%d-%b-%Y")
+                            if cntTealCount == 1:
+                                latestTealVolDate = stock_data_daily.index[i].strftime("%d-%b-%Y")
+            
+            # Fetch industy and mcap
+            [sector, industry, marketCap] = fetch_industry_mcap(stock)
 
-            row = {'stock': stock, 'limeVolToday' : str(isTodayLimeVolume), 'limeVolCount': str(cntLimeCount), \
-                   'latestLimeVolDate' : str(latestLimeVolDate), 'mcap' : marketCap, 'priceChng': str(pctChange), 'earliestLimeVolDate' : str(earliestLimeVolDate), 'sector' : sector, \
-                    'industry' : industry}
+            blueVolCnt = cntLimeCount + cntTealCount
+            row = {'stock': stock, 'blueVolCount': str(blueVolCnt), 'limeVolToday' : str(isTodayLimeVolume), 'limeVolCount': str(cntLimeCount), \
+                   'latestLimeVolDate' : str(latestLimeVolDate), 'earliestLimeVolDate' : str(earliestLimeVolDate), \
+                    'tealVolCount': str(cntTealCount), 'latestTealVolDate' : str(latestTealVolDate), 'earliestTealVolDate' : str(earliestTealVolDate), \
+                    'mcap' : marketCap, 'priceChng': str(pctChange),  'sector' : sector, 'industry' : industry}
             # Append the new row to the DataFrame
             df.loc[len(df)] = row
 
