@@ -4,6 +4,8 @@ import time
 
 # Read the list of stocks from the CSV file
 stocks = pd.read_csv("stocks.csv", header=0, usecols=["Ticker"])
+# Exchange, ".BO, .NS"
+exchange = ".NS"
 
 # Set the time frame to max
 time_frame = 'max'
@@ -24,7 +26,7 @@ results = []
 for stock in stocks["Ticker"]:
     try:
         # Get the stock data from yfinance, dont adjust OHLC
-        ticker = yf.Ticker(stock+".NS")
+        ticker = yf.Ticker(f'{stock}{exchange}')
         data = ticker.history(period=time_frame,interval=data_interval,auto_adjust=False)
         # Drop those with NaN
         data = data.dropna()
@@ -67,4 +69,7 @@ for stock in stocks["Ticker"]:
 
 # Print the results
 print(results)
+ex = 'NSE' if exchange == '.NS' else 'BSE'
+for stk in results:
+    print(f'{ex}:{stk},')
 print("Done")
