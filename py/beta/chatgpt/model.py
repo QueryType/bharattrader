@@ -2,7 +2,9 @@ import openai
 import os
 from dotenv import load_dotenv, find_dotenv
 
-def get_completion(prompt, model="gpt-3.5-turbo"):
+model_name = 'gpt-4' #gpt-3.5-turbo
+
+def get_completion(prompt, model=model_name):
     messages = [{"role": "user", "content": prompt}]
     response = openai.ChatCompletion.create(
         model=model,
@@ -12,7 +14,7 @@ def get_completion(prompt, model="gpt-3.5-turbo"):
     return response.choices[0].message["content"]
 
 def get_completion_large(messages, 
-                        model="gpt-3.5-turbo", 
+                        model=model_name, 
                         temperature=0, 
                         max_tokens=1000):
     continuation_token = None
@@ -38,7 +40,7 @@ def get_completion_large(messages,
 
 
 def get_completion_from_messages(messages, 
-                                 model="gpt-3.5-turbo", 
+                                 model=model_name, 
                                  temperature=0, 
                                  max_tokens=500):
     response = openai.ChatCompletion.create(
