@@ -6,26 +6,17 @@ Daily timeframe
 import yfinance as yf
 import pandas as pd
 
-# set the file name of stocks
-stock_filename = "stocks500.csv"
-
 # Set the bar time frame
 data_interval = '1d'
 
 # Set the time frame to max
 time_frame = '1y'
 
-# Specify the ARS reference date
-ars_reference_date = "2022-12-01"
-
 # Set CRS average length
 average_length = 55
 
 # Specify the benchmark symbol
 benchmark = "^NSEI"
-
-# Set output folder path
-output_path = "output"
 
 # Read the list of stocks from the CSV file
 stocks = pd.read_csv("stocks.csv", header=0, usecols=["Ticker"])
