@@ -12,7 +12,7 @@ import logging
 log_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 LOCAL_MODEL = '' #'llama3.1:latest'  # keep it blank if, gpt is used
 LOCAL_URL = 'http://10.0.0.4:7862/v1'  # Update with cloud URL or Local
-GPT_MODEL = 'gpt-4o-mini'  # if LOCAL_MODEL is not blank, GPT will be used
+GPT_MODEL = 'gpt-4o-mini'  # if LOCAL_MODEL is blank, GPT will be used
 CONTEXT_LEN = 1500
 
 # Logging configuration
