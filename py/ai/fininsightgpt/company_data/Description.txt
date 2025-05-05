@@ -1,0 +1,1 @@
+Create folder for each business (company) you wish to analyse and place all documents here.
