@@ -1,0 +1,36 @@
+# AI Agent Framework
+smolagents>=0.3.0
+
+# OpenAI API Integration
+openai>=1.0.0
+
+# LLM Model Support
+litellm>=1.0.0
+
+# Environment Variables Management
+python-dotenv>=1.0.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# HTTP Requests (for web fetching)
+requests>=2.31.0
+
+# JSON Processing (built-in, but some tools might need enhanced support)
+jsonschema>=4.17.0
+
+# File I/O and CSV Processing (built-in, but for completeness)
+# csv - built-in
+# os - built-in
+# datetime - built-in
+
+# Optional: For enhanced web scraping capabilities
+beautifulsoup4>=4.12.0
+selenium>=4.15.0
+
+# Optional: For better logging and debugging
+loguru>=0.7.0
+
+# Optional: For data validation
+pydantic>=2.0.0
