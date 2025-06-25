@@ -39,8 +39,14 @@ Before running this project, ensure you have:
 
 ### 1. Install Required Dependencies
 
+#### Option A: Using requirements.txt (Recommended)
 ```bash
-pip install smolagents python-dotenv openai litellm
+pip install -r requirements.txt
+```
+
+#### Option B: Manual Installation
+```bash
+pip install smolagents python-dotenv openai litellm pandas numpy requests
 ```
 
 ### 2. Environment Configuration
